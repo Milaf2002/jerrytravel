@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>日本旅遊手帳 🌸</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/vue/3.4.21/vue.global.prod.min.js"></script>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500&family=Shippori+Mincho:wght@400;500&family=DM+Serif+Display:ital@1&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:    #0f0f13;
+  --bg2:   #17171e;
+  --bg3:   #1e1e28;
+  --card:  #1a1a24;
+  --amber: #f0a84a;
+  --amber2:#d4863a;
+  --ink:   #eeeaf2;
+  --muted: #7a7690;
+  --border:#2c2c3d;
+  --white: #22222e;
+  --yellow:#2a2518;
+  --yellow2:#241f14;
+}
+*{-webkit-tap-highlight-color:transparent;box-sizing:border-box;}
+body{background:var(--bg);font-family:'Noto Sans TC',sans-serif;font-weight:300;color:var(--ink);overscroll-behavior:none;margin:0;}
+.no-scroll::-webkit-scrollbar{display:none;}.no-scroll{-ms-overflow-style:none;scrollbar-width:none;}
+.day-pill{transition:all .22s cubic-bezier(.4,0,.2,1);}
+.day-pill.active{background:var(--amber)!important;color:#0f0f13!important;}
+.day-pill.active .dc{color:rgba(15,15,19,.6)!important;}
+.tab-dot{opacity:0;transition:opacity .2s;}
+/* 景點卡 */
+.spot-card{border-left:3px solid var(--amber);}
+/* 移動卡 - 深色版 */
+.mv-walk {border-left:3px solid #4ade80;background:#0d2016;}
+.mv-jr   {border-left:3px solid #60a5fa;background:#0d1a2e;}
+.mv-metro{border-left:3px solid #a78bfa;background:#160d2e;}
+.mv-bus  {border-left:3px solid #f87171;background:#2e0d0d;}
+.mv-port {border-left:3px solid #fb923c;background:#2a1505;}
+/* 注意事項 */
+.note-card{border-left:3px solid #fbbf24;background:#1e1a08;}
+/* 餐食 */
+.meal-card{border-left:3px solid #fb923c;background:#1e1208;}
+/* modal */
+.modal-bg{background:rgba(0,0,0,.75);backdrop-filter:blur(12px);}
+@keyframes su{from{opacity:0;transform:translateY(16px);}to{opacity:1;transform:translateY(0);}}
+.su{animation:su .3s cubic-bezier(.4,0,.2,1) both;}
+input{color:var(--ink);} input::placeholder{color:var(--muted);}
+textarea{color:var(--ink);} textarea::placeholder{color:var(--muted);}
+input:focus,textarea:focus,select:focus{outline:2px solid var(--amber);outline-offset:0;}
+select{color:var(--ink);}
+.day-scroll{scroll-snap-type:x mandatory;}.dpw{scroll-snap-align:start;}
+.bnav{padding-bottom:env(safe-area-inset-bottom,0px);}
+.mf{filter:brightness(.9) contrast(1.1);}
+.tp{display:inline-flex;align-items:center;gap:3px;font-size:.62rem;padding:2px 7px;border-radius:999px;background:var(--bg3);color:var(--muted);border:1px solid var(--border);}
+/* 圖例 深色版 */
+.leg-walk{font-size:.58rem;padding:2px 6px;border-radius:5px;background:#0d2016;color:#4ade80;border-left:2px solid #4ade80;}
+.leg-jr  {font-size:.58rem;padding:2px 6px;border-radius:5px;background:#0d1a2e;color:#60a5fa;border-left:2px solid #60a5fa;}
+.leg-metro{font-size:.58rem;padding:2px 6px;border-radius:5px;background:#160d2e;color:#a78bfa;border-left:2px solid #a78bfa;}
+.leg-bus {font-size:.58rem;padding:2px 6px;border-radius:5px;background:#2e0d0d;color:#f87171;border-left:2px solid #f87171;}
+.leg-port{font-size:.58rem;padding:2px 6px;border-radius:5px;background:#2a1505;color:#fb923c;border-left:2px solid #fb923c;}
+/* scrollbar for desktop */
+::-webkit-scrollbar{width:4px;height:4px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px;}
+</style>
+</head>
+<body>
+<div id="app" style="max-width:430px;margin:0 auto;min-height:100vh;display:flex;flex-direction:column;">
+
+<!-- ── HEADER ── -->
+<header class="sticky top-0 z-30 px-4 pt-4 pb-2" style="background:var(--bg);border-bottom:1px solid var(--border);">
+  <div class="flex items-center justify-between mb-3">
+    <div>
+      <p style="font-family:'DM Serif Display',serif;font-style:italic;font-size:.73rem;color:var(--muted);">CI152 TPE→KIX · 2025 May</p>
+      <h1 style="font-family:'Shippori Mincho',serif;font-size:1.16rem;font-weight:500;letter-spacing:.04em;color:var(--ink);">日本關西之旅 🌸</h1>
+    </div>
+    <div class="flex items-center gap-1 px-3 py-1.5 rounded-full" style="background:var(--bg3);border:1px solid var(--border);font-size:.78rem;">
+      <span>{{ cd.weather.icon }}</span>
+      <span style="color:var(--amber);font-weight:500;">{{ cd.weather.temp }}°C</span>
+    </div>
+  </div>
+  <!-- 日期橫向滑動 -->
+  <div class="day-scroll no-scroll flex gap-2 overflow-x-auto pb-1">
+    <div v-for="(day,i) in days" :key="day.id" class="dpw flex-shrink-0">
+      <button @click="ad=i" class="day-pill flex flex-col items-center rounded-2xl px-3 py-2"
+              :class="ad===i?'active':''" :style="ad!==i?'background:var(--bg3);border:1px solid var(--border);':''">
+        <span style="font-size:.72rem;font-weight:500;">{{ day.label }}</span>
+        <span class="dc" style="font-size:.6rem;color:var(--muted);">{{ day.cs }}</span>
+        <span style="font-size:.57rem;color:var(--muted);">{{ day.date }}</span>
+      </button>
+    </div>
+  </div>
+</header>
+
+<!-- ── MAIN ── -->
+<main class="flex-1 overflow-y-auto no-scroll px-4 pb-28" style="background:var(--bg);">
+
+  <!-- ═══ 行程 ═══ -->
+  <div v-if="at==='schedule'" class="su">
+
+    <!-- 天氣 + 航班卡 -->
+    <div class="rounded-2xl p-4 mb-4 flex items-center gap-3"
+         style="background:linear-gradient(135deg,var(--bg3),var(--bg2));border:1px solid var(--border);">
+      <div style="font-size:2.4rem;">{{ cd.weather.icon }}</div>
+      <div class="flex-1">
+        <p style="font-family:'Shippori Mincho',serif;font-weight:500;font-size:.93rem;color:var(--ink);">{{ cd.city }}</p>
+        <p v-if="cd.flight" style="font-size:.68rem;color:var(--amber);margin-top:1px;">✈️ {{ cd.flight }}</p>
+        <p style="font-size:.68rem;color:var(--muted);margin-top:2px;">{{ cd.weather.desc }} · 體感{{ cd.weather.feel }}°C</p>
+        <div class="flex gap-3 mt-1" style="font-size:.65rem;color:var(--muted);">
+          <span>🌡 {{ cd.weather.min }}°~{{ cd.weather.max }}°</span>
+          <span>💧 {{ cd.weather.humidity }}%</span>
+          <span>🌬 {{ cd.weather.wind }}m/s</span>
+        </div>
+      </div>
+      <div class="text-right">
+        <p style="font-family:'DM Serif Display',serif;font-size:1.95rem;color:var(--amber);line-height:1;">{{ cd.weather.temp }}°</p>
+        <p style="font-size:.58rem;color:var(--muted);">預估氣溫</p>
+      </div>
+    </div>
+
+    <!-- Google Maps 今日路線 -->
+    <a v-if="cd.routeUrl" :href="cd.routeUrl" target="_blank"
+       class="flex items-center justify-center gap-2 w-full mb-4 py-2.5 rounded-2xl"
+       style="background:var(--amber);color:#0f0f13;text-decoration:none;font-size:.77rem;font-weight:600;">
+      🗺 開啟今日 Google Maps 完整路線
+    </a>
+
+    <!-- 標頭 + 新增 -->
+    <div class="flex items-center justify-between mb-2">
+      <h2 style="font-size:.76rem;font-weight:500;color:var(--muted);">
+        今日行程 · {{ cd.items.filter(i=>i.type==='spot').length }} 景點 · {{ cd.items.filter(i=>i.type==='move').length }} 移動
+      </h2>
+      <button @click="oaS" style="background:var(--amber);color:#0f0f13;font-size:.7rem;font-weight:600;padding:5px 12px;border-radius:999px;border:none;cursor:pointer;">＋ 新增</button>
+    </div>
+
+    <!-- 圖例 -->
+    <div class="flex gap-1.5 flex-wrap mb-3">
+      <span class="leg-walk">🚶 步行</span>
+      <span class="leg-jr">🚃 JR</span>
+      <span class="leg-metro">🚇 地鐵</span>
+      <span class="leg-bus">🚌 巴士</span>
+      <span class="leg-port">🚟 Port</span>
+    </div>
+
+    <!-- 行程卡片列表 -->
+    <div class="flex flex-col gap-2">
+      <template v-for="(item,ii) in cd.items" :key="item.id">
+
+        <!-- 景點卡 -->
+        <div v-if="item.type==='spot'" class="spot-card rounded-2xl p-4" style="background:var(--card);border:1px solid var(--border);">
+          <div class="flex gap-3">
+            <div style="min-width:36px;text-align:center;flex-shrink:0;">
+              <p v-if="item.time" style="font-family:'Shippori Mincho',serif;font-size:.84rem;color:var(--amber);font-weight:500;">{{ item.time }}</p>
+              <span v-else style="font-size:.85rem;">📍</span>
+            </div>
+            <div class="flex-1 min-w-0">
+              <div class="flex items-start justify-between gap-2">
+                <p style="font-weight:500;font-size:.88rem;line-height:1.35;flex:1;color:var(--ink);">{{ item.name }}</p>
+                <div class="flex gap-1 flex-shrink-0">
+                  <button @click="eI(ii)" style="width:26px;height:26px;border-radius:50%;background:var(--bg3);border:1px solid var(--border);cursor:pointer;font-size:.7rem;">✏️</button>
+                  <button @click="dI(ii)" style="width:26px;height:26px;border-radius:50%;background:#3d1515;color:#f87171;border:none;cursor:pointer;font-size:.62rem;font-weight:700;">✕</button>
+                </div>
+              </div>
+              <p v-if="item.place" style="font-size:.68rem;color:var(--muted);margin-top:3px;">📍 {{ item.place }}</p>
+              <div v-if="item.fee" class="mt-1.5"><span class="tp">🎟 {{ item.fee }}</span></div>
+              <!-- 備註條列 -->
+              <ul v-if="item.notes&&item.notes.length" class="mt-2 px-3 py-2 rounded-xl" style="background:var(--yellow);list-style:none;">
+                <li v-for="n in item.notes" :key="n"
+                    style="font-size:.69rem;color:#c8b870;line-height:1.7;display:flex;gap:5px;align-items:flex-start;">
+                  <span style="flex-shrink:0;">💬</span>
+                  <span v-html="linkify(n)"></span>
+                </li>
+              </ul>
+              <!-- 連結按鈕 -->
+              <div class="flex gap-2 mt-2 flex-wrap">
+                <a v-if="item.place" :href="`https://www.google.com/maps/search/${enc(item.place+' '+item.name)}`"
+                   target="_blank" class="tp" style="background:#0d1a2e;color:#60a5fa;border-color:#1e3a5f;text-decoration:none;">🗺 地圖</a>
+                <a v-if="item.navUrl" :href="item.navUrl" target="_blank"
+                   class="tp" style="background:#0d2016;color:#4ade80;border-color:#1a3d28;text-decoration:none;">🧭 導航</a>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 移動卡（每條獨立） -->
+        <div v-else-if="item.type==='move'" class="rounded-xl px-3 py-2.5"
+             :class="mvClass(item.mt)" style="border:1px solid rgba(255,255,255,.06);">
+          <div class="flex items-start gap-2">
+            <span style="font-size:.95rem;flex-shrink:0;margin-top:1px;">{{ mvIcon(item.mt) }}</span>
+            <div class="flex-1 min-w-0">
+              <p style="font-size:.76rem;font-weight:500;line-height:1.4;" :style="mvColor(item.mt)">{{ item.name }}</p>
+              <div class="flex flex-wrap gap-x-3 mt-0.5" style="font-size:.63rem;color:var(--muted);">
+                <span v-if="item.fare">💴 {{ item.fare }}</span>
+                <span v-if="item.freq">🕐 {{ item.freq }}</span>
+                <span v-if="item.dur">⏱ {{ item.dur }}</span>
+              </div>
+              <p v-if="item.note" style="font-size:.63rem;color:var(--muted);margin-top:2px;line-height:1.5;">{{ item.note }}</p>
+            </div>
+            <a v-if="item.mapUrl" :href="item.mapUrl" target="_blank"
+               style="flex-shrink:0;font-size:.58rem;padding:2px 7px;border-radius:999px;background:rgba(255,255,255,.08);text-decoration:none;color:var(--muted);border:1px solid var(--border);white-space:nowrap;margin-top:1px;">地圖→</a>
+          </div>
+        </div>
+
+        <!-- 注意事項卡 -->
+        <div v-else-if="item.type==='note'" class="note-card rounded-xl px-3 py-2.5" style="border:1px solid #3d3000;">
+          <div class="flex items-start gap-2">
+            <span style="font-size:.88rem;flex-shrink:0;">{{ item.mi||'⚠️' }}</span>
+            <p style="font-size:.72rem;color:#d4a842;line-height:1.6;" v-html="linkify(item.name)"></p>
+          </div>
+        </div>
+
+        <!-- 餐食卡 -->
+        <div v-else-if="item.type==='meal'" class="meal-card rounded-xl px-3 py-2.5" style="border:1px solid #3d2000;">
+          <div class="flex items-center gap-2">
+            <span style="font-size:.88rem;">{{ item.mi||'🍽' }}</span>
+            <p style="font-size:.74rem;font-weight:500;color:#fb923c;">{{ item.name }}</p>
+          </div>
+        </div>
+
+      </template>
+    </div>
+
+    <!-- 迷你地圖 -->
+    <div class="mt-5 rounded-2xl overflow-hidden" style="border:1px solid var(--border);">
+      <div class="px-4 py-3 flex items-center justify-between" style="background:var(--card);">
+        <p style="font-family:'Shippori Mincho',serif;font-size:.86rem;font-weight:500;color:var(--ink);">📍 今日地圖</p>
+        <button @click="mm=true" style="font-size:.66rem;padding:4px 11px;border-radius:999px;background:var(--bg3);color:var(--amber);border:1px solid var(--border);cursor:pointer;">展開</button>
+      </div>
+      <iframe class="mf w-full" style="height:185px;display:block;" :src="muUrl"
+              allowfullscreen loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
+    </div>
+  </div>
+
+  <!-- ═══ 備用景點 ═══ -->
+  <div v-if="at==='backup'" class="su">
+    <div class="flex justify-between items-center mb-4">
+      <p style="font-size:.76rem;font-weight:500;color:var(--muted);">備用景點 · {{ bks.length }} 處</p>
+      <button @click="bkM=true" style="background:var(--amber);color:#0f0f13;font-size:.7rem;font-weight:600;padding:5px 12px;border-radius:999px;border:none;cursor:pointer;">＋ 加入</button>
+    </div>
+    <div class="flex flex-col gap-3">
+      <div v-if="!bks.length" class="text-center py-10" style="color:var(--muted);">
+        <p style="font-size:1.8rem;">⭐</p><p style="font-size:.8rem;margin-top:4px;">收藏備用，臨時換點不慌張</p>
+      </div>
+      <div v-for="(sp,bi) in bks" :key="sp.id" class="rounded-2xl p-4" style="background:var(--card);border:1px solid var(--border);">
+        <div class="flex gap-3">
+          <span style="font-size:1.45rem;flex-shrink:0;">{{ sp.icon }}</span>
+          <div class="flex-1 min-w-0">
+            <div class="flex justify-between">
+              <p style="font-size:.86rem;font-weight:500;color:var(--ink);">{{ sp.name }}</p>
+              <button @click="bks.splice(bi,1)" style="width:24px;height:24px;border-radius:50%;background:#3d1515;color:#f87171;border:none;cursor:pointer;font-size:.6rem;font-weight:700;flex-shrink:0;">✕</button>
+            </div>
+            <p style="font-size:.68rem;color:var(--muted);margin-top:2px;">📍 {{ sp.place }}</p>
+            <p v-if="sp.note" class="mt-1.5 px-2 py-1.5 rounded-xl" style="background:var(--yellow);font-size:.67rem;color:#c8b870;">{{ sp.note }}</p>
+            <div class="flex gap-2 mt-2 flex-wrap">
+              <span class="tp">{{ sp.dl }}</span>
+              <a :href="`https://www.google.com/maps/search/${enc(sp.place+' '+sp.name)}`" target="_blank"
+                 class="tp" style="background:#0d1a2e;color:#60a5fa;border-color:#1e3a5f;text-decoration:none;">🗺 地圖</a>
+              <button @click="m2s(sp)" class="tp" style="background:#0d2016;color:#4ade80;border-color:#1a3d28;cursor:pointer;border:1px solid #1a3d28;">→ 加入行程</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ 地圖 ═══ -->
+  <div v-if="at==='map'" class="su">
+    <div class="flex justify-between items-center mb-3">
+      <p style="font-size:.76rem;font-weight:500;color:var(--muted);">{{ cd.city }}</p>
+      <a :href="cd.routeUrl||gml" target="_blank"
+         style="background:var(--amber);color:#0f0f13;font-size:.68rem;font-weight:600;padding:5px 12px;border-radius:999px;text-decoration:none;">↗ 完整路線</a>
+    </div>
+    <!-- 定位 -->
+    <div class="rounded-2xl px-4 py-3 mb-3 flex items-center gap-3" style="background:var(--card);border:1px solid var(--border);">
+      <span style="font-size:1.05rem;">📍</span>
+      <div class="flex-1">
+        <p style="font-size:.82rem;font-weight:500;color:var(--ink);">我的位置</p>
+        <p style="font-size:.66rem;color:var(--muted);">{{ geo }}</p>
+      </div>
+      <button @click="gG" style="padding:4px 12px;border-radius:999px;background:var(--bg3);color:var(--amber);font-size:.68rem;border:1px solid var(--border);cursor:pointer;">定位</button>
+    </div>
+    <!-- 大地圖 -->
+    <div class="rounded-2xl overflow-hidden mb-4" style="border:1px solid var(--border);">
+      <iframe class="mf w-full" style="height:350px;display:block;" :src="fuUrl"
+              allowfullscreen loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
+    </div>
+    <p style="font-size:.68rem;color:var(--muted);margin-bottom:8px;">今日景點 · 點擊開啟導航</p>
+    <div class="flex flex-col gap-2">
+      <a v-for="item in cd.items.filter(i=>i.type==='spot')" :key="item.id"
+         :href="`https://www.google.com/maps/search/${enc((item.place||'')+' '+item.name)}`" target="_blank"
+         class="rounded-2xl px-4 py-3 flex items-center gap-3" style="background:var(--card);border:1px solid var(--border);text-decoration:none;">
+        <span style="font-size:.9rem;">🗺</span>
+        <div class="flex-1">
+          <p style="font-size:.84rem;font-weight:500;color:var(--ink);">{{ item.time?item.time+' ':'' }}{{ item.name }}</p>
+          <p style="font-size:.66rem;color:var(--muted);">{{ item.place }}</p>
+        </div>
+        <span style="color:var(--amber);">→</span>
+      </a>
+    </div>
+  </div>
+
+</main>
+
+<!-- ── BOTTOM NAV ── -->
+<nav class="bnav fixed bottom-0 z-30 px-4 pt-2 pb-3"
+     style="left:50%;transform:translateX(-50%);width:100%;max-width:430px;background:rgba(15,15,19,.92);backdrop-filter:blur(20px);border-top:1px solid var(--border);">
+  <div class="flex justify-around">
+    <button v-for="t in tabs" :key="t.id" @click="at=t.id"
+            class="flex flex-col items-center gap-0.5 px-4 py-1 rounded-xl"
+            :style="at===t.id?'color:var(--amber);':'color:var(--muted);'">
+      <span style="font-size:1.2rem;">{{ t.icon }}</span>
+      <span style="font-size:.58rem;font-weight:500;letter-spacing:.04em;">{{ t.label }}</span>
+      <span class="tab-dot w-1 h-1 rounded-full" :style="at===t.id?'opacity:1;background:var(--amber);':'background:var(--amber);'"></span>
+    </button>
+  </div>
+</nav>
+
+<!-- ── MODAL: 景點新增/編輯 ── -->
+<transition name="fade">
+<div v-if="sM.show" class="modal-bg fixed inset-0 z-50 flex items-end justify-center" @click.self="sM.show=false">
+  <div class="w-full rounded-t-3xl p-6 su" style="max-width:430px;background:var(--bg2);max-height:90vh;overflow-y:auto;border-top:1px solid var(--border);">
+    <div class="flex justify-between items-center mb-5">
+      <h3 style="font-family:'Shippori Mincho',serif;font-weight:500;color:var(--ink);">{{ sM.ed?'編輯景點':'新增景點' }}</h3>
+      <button @click="sM.show=false" style="width:32px;height:32px;border-radius:50%;background:var(--bg3);border:1px solid var(--border);cursor:pointer;color:var(--muted);font-size:.9rem;">✕</button>
+    </div>
+    <div class="flex flex-col gap-3">
+      <input v-model="sF.time" type="time" style="width:100%;font-size:.84rem;padding:10px 16px;border-radius:16px;border:1px solid var(--border);background:var(--bg3);color:var(--ink);">
+      <input v-model="sF.name" type="text" placeholder="景點名稱" style="width:100%;font-size:.84rem;padding:10px 16px;border-radius:16px;border:1px solid var(--border);background:var(--bg3);color:var(--ink);">
+      <input v-model="sF.place" type="text" placeholder="地址 / 地點" style="width:100%;font-size:.84rem;padding:10px 16px;border-radius:16px;border:1px solid var(--border);background:var(--bg3);color:var(--ink);">
+      <input v-model="sF.fee" type="text" placeholder="門票費用（選填）" style="width:100%;font-size:.84rem;padding:10px 16px;border-radius:16px;border:1px solid var(--border);background:var(--bg3);color:var(--ink);">
+      <div>
+        <p style="font-size:.7rem;color:var(--muted);margin-bottom:4px;">備註（每行一條）</p>
+        <textarea v-model="sF.noteRaw" rows="3" placeholder="每行一條備註" style="width:100%;font-size:.84rem;padding:10px 16px;border-radius:16px;border:1px solid var(--border);background:var(--bg3);color:var(--ink);resize:none;"></textarea>
+      </div>
+      <button @click="svS" style="width:100%;padding:12px;border-radius:16px;background:var(--amber);color:#0f0f13;font-size:.85rem;font-weight:600;border:none;cursor:pointer;">{{ sM.ed?'儲存變更':'新增到行程' }}</button>
+    </div>
+  </div>
+</div>
+</transition>
+
+<!-- ── MODAL: 備用景點 ── -->
+<transition name="fade">
+<div v-if="bkM" class="modal-bg fixed inset-0 z-50 flex items-end justify-center" @click.self="bkM=false">
+  <div class="w-full rounded-t-3xl p-6 su" style="max-width:430px;background:var(--bg2);border-top:1px solid var(--border);">
+    <div class="flex justify-between items-center mb-5">
+      <h3 style="font-family:'Shippori Mincho',serif;font-weight:500;color:var(--ink);">新增備用景點</h3>
+      <button @click="bkM=false" style="width:32px;height:32px;border-radius:50%;background:var(--bg3);border:1px solid var(--border);cursor:pointer;color:var(--muted);font-size:.9rem;">✕</button>
+    </div>
+    <div class="flex flex-col gap-3">
+      <input v-model="bF.name" type="text" placeholder="景點名稱" style="width:100%;font-size:.84rem;padding:10px 16px;border-radius:16px;border:1px solid var(--border);background:var(--bg3);color:var(--ink);">
+      <input v-model="bF.place" type="text" placeholder="地址" style="width:100%;font-size:.84rem;padding:10px 16px;border-radius:16px;border:1px solid var(--border);background:var(--bg3);color:var(--ink);">
+      <select v-model="bF.di" style="width:100%;font-size:.84rem;padding:10px 16px;border-radius:16px;border:1px solid var(--border);background:var(--bg3);color:var(--ink);">
+        <option v-for="(d,i) in days" :key="i" :value="i">{{ d.label }} · {{ d.cs }}</option>
+      </select>
+      <div class="flex gap-2 flex-wrap">
+        <button v-for="e in ['🏯','⛩','🎡','🌸','🦌','🍜','🛍','🎭','🌿','🗼','🦀','🐋','🏖','🎠']" :key="e"
+                @click="bF.icon=e" style="width:36px;height:36px;border-radius:10px;font-size:1.05rem;cursor:pointer;"
+                :style="bF.icon===e?`background:var(--amber);border:none;`:`background:var(--bg3);border:1px solid var(--border);`">{{ e }}</button>
+      </div>
+      <textarea v-model="bF.note" rows="2" placeholder="備註..." style="width:100%;font-size:.84rem;padding:10px 16px;border-radius:16px;border:1px solid var(--border);background:var(--bg3);color:var(--ink);resize:none;"></textarea>
+      <button @click="svB" style="width:100%;padding:12px;border-radius:16px;background:var(--amber);color:#0f0f13;font-size:.85rem;font-weight:600;border:none;cursor:pointer;">加入收藏</button>
+    </div>
+  </div>
+</div>
+</transition>
+
+<!-- ── MODAL: 全螢幕地圖 ── -->
+<transition name="fade">
+<div v-if="mm" class="modal-bg fixed inset-0 z-50 flex flex-col items-center">
+  <div class="flex-1 flex flex-col w-full" style="max-width:430px;">
+    <div class="flex items-center justify-between px-4 py-3" style="background:var(--bg2);border-bottom:1px solid var(--border);">
+      <p style="font-family:'Shippori Mincho',serif;font-weight:500;font-size:.88rem;color:var(--ink);">{{ cd.city }}</p>
+      <button @click="mm=false" style="padding:5px 12px;border-radius:999px;background:var(--amber);color:#0f0f13;font-size:.7rem;font-weight:600;border:none;cursor:pointer;">關閉</button>
+    </div>
+    <iframe class="mf flex-1 w-full" :src="fuUrl" allowfullscreen loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
+  </div>
+</div>
+</transition>
+
+</div><!-- end #app -->
+<script>
+const{createApp,ref,computed,reactive}=Vue;
+
+const D=(o,d,...wp)=>'https://www.google.com/maps/dir/'+[o,...wp,d].map(encodeURIComponent).join('/');
+const N=d=>`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(d)}&travelmode=transit`;
+
+createApp({setup(){
+
+  // ── 交通類型 ──
+  const mvClass=t=>({walk:'mv-walk',jr:'mv-jr',metro:'mv-metro',bus:'mv-bus',port:'mv-port'}[t]||'mv-jr');
+  const mvIcon =t=>({walk:'🚶',jr:'🚃',metro:'🚇',bus:'🚌',port:'🚟'}[t]||'🚃');
+  const mvColor=t=>({walk:'color:#4ade80;',jr:'color:#60a5fa;',metro:'color:#a78bfa;',bus:'color:#f87171;',port:'color:#fb923c;'}[t]||'color:#60a5fa;');
+
+  // ── linkify: URL → 超連結 ──
+  const linkify=s=>s?s.replace(/(https?:\/\/[^\s<>]+)/g,'<a href="$1" target="_blank" style="color:#1e40af;text-decoration:underline;word-break:break-all;">$1</a>'):'';
+
+  // ══════════════════════════════════════════
+  // 行程資料
+  // ══════════════════════════════════════════
+  const days=ref([
+
+    /* ─── Day 1 · 5/8 · 大阪 ─── */
+    {id:0,label:'Day 1',cs:'大阪',city:'大阪 Osaka',date:'5/8 六',
+     flight:'CI152 桃園T2 09:00 → 關西 12:50',
+     weather:{icon:'⛅',temp:22,feel:20,min:18,max:26,desc:'多雲偶晴',humidity:68,wind:3.5},
+     routeUrl:D('關西國際機場','Ocean Tsutenkaku Hotel 大阪','臨空城Outlet大阪','道頓堀 大阪'),
+     items:[
+      {id:100,type:'note',mi:'✈️',name:'CI152 中華航空 · 桃園T2 09:00 → 關西機場 12:50'},
+      {id:101,type:'note',mi:'📋',name:'Visit Japan Web 入境前填寫：https://services.digital.go.jp/zh-cmn-hant/visit-japan-web/'},
+      {id:102,type:'spot',time:'13:00',name:'關西機場 KIX 入境',place:'大阪府泉佐野市関西空港1番地',fee:'',
+       notes:['到JR綠色窗口或南海電鐵窗口買 ICOCA 卡','🔴 紅色 = 南海電鐵搭車處　🔵 藍色 = JR西日本鐵路搭車處','買東京海上日動旅遊保險（Visit Japan Web 購買）'],
+       navUrl:N('関西国際空港')},
+      {id:103,type:'move',mt:'walk',name:'出關後搭乘手扶梯到二樓，走過空橋到「關西空港駅」',fare:'',freq:'',dur:'',note:'',mapUrl:''},
+      {id:104,type:'move',mt:'jr',name:'關西空港駅 → 臨空城駅（JR）',fare:'成人370¥・小孩185¥',freq:'15-30分鐘一班',dur:'車程5分鐘',note:'刷ICOCA',mapUrl:D('関西空港駅','りんくうタウン駅')},
+      {id:105,type:'move',mt:'walk',name:'走2號出口 → 臨空城 Outlet',fare:'',freq:'',dur:'路程5分鐘',note:'',mapUrl:''},
+      {id:106,type:'spot',time:'',name:'臨空城 Outlet 🛍',place:'大阪府泉佐野市りんくう往来北3',fee:'',
+       notes:['先到 Info. 服務中心（GAP下面）拿店家地圖和 Coupon 折價券'],
+       navUrl:N('りんくうプレミアム・アウトレット')},
+      {id:107,type:'meal',mi:'🍽',name:'午餐：臨空城 Outlet'},
+      {id:108,type:'move',mt:'walk',name:'走路到 JR「臨空城駅」',fare:'',freq:'',dur:'路程5分鐘',note:'',mapUrl:''},
+      {id:109,type:'move',mt:'jr',name:'臨空城駅 → 天王寺駅（JR關空快速）',fare:'成人1,300¥・小孩650¥',freq:'15分鐘一班',dur:'車程40-50分鐘',note:'刷ICOCA',mapUrl:D('りんくうタウン駅','天王寺駅')},
+      {id:110,type:'move',mt:'walk',name:'走路到飯店 Ocean Tsutenkaku Check-in',fare:'',freq:'',dur:'',note:'',mapUrl:''},
+      {id:111,type:'spot',time:'',name:'飯店 Ocean Tsutenkaku 🏨',place:'大阪市浪速区恵美須東2-3-8',fee:'',
+       notes:['放好行李，輕裝出發'],navUrl:N('Ocean Hotel Tsutenkaku 大阪')},
+      {id:112,type:'move',mt:'walk',name:'走路到地鐵「大國町駅」',fare:'',freq:'',dur:'',note:'',mapUrl:''},
+      {id:113,type:'move',mt:'metro',name:'大國町駅 → 難波駅（地鐵御堂筋線）',fare:'成人190¥・小孩95¥',freq:'4分鐘一班',dur:'車程2分鐘',note:'刷ICOCA',mapUrl:D('大国町駅','なんば駅')},
+      {id:114,type:'move',mt:'walk',name:'走路到心齋橋・道頓堀',fare:'',freq:'',dur:'',note:'',mapUrl:''},
+      {id:115,type:'spot',time:'晚上',name:'難波・心齋橋・道頓堀 🦀',place:'大阪市中央区道頓堀',fee:'',
+       notes:[
+         '格力古跑步人打卡必拍',
+         '🛍 3Coins：行李壓縮器、衣架、行李袋',
+         '🛍 唐吉軻德：今治毛巾、足膜、電子菸、維他命C',
+         '🛍 鬼塚虎'
+       ],navUrl:N('道頓堀 大阪')},
+      {id:116,type:'meal',mi:'🍽',name:'晚餐：心齋橋・道頓堀'},
+      {id:117,type:'move',mt:'metro',name:'心齋橋駅 → 大國町駅（地鐵御堂筋線）',fare:'成人190¥・小孩95¥',freq:'4分鐘一班',dur:'車程2分鐘',note:'刷ICOCA',mapUrl:D('心斎橋駅','大国町駅')},
+      {id:118,type:'move',mt:'walk',name:'走路回飯店 Ocean Tsutenkaku',fare:'',freq:'',dur:'',note:'',mapUrl:''},
+    ]},
+
+    /* ─── Day 2 · 5/9 · 神戶 ─── */
+    {id:1,label:'Day 2',cs:'神戶',city:'神戶 Kobe',date:'5/9 日',flight:'',
+     weather:{icon:'🌤',temp:21,feel:19,min:16,max:24,desc:'晴時多雲',humidity:62,wind:4.2},
+     routeUrl:D('Ocean Hotel Tsutenkaku 大阪','姫路城','神戸どうぶつ王国','メリケンパーク 神戸'),
+     items:[
+      {id:200,type:'note',mi:'🏨',name:'出發前 → 飯店 Ocean Tsutenkaku'},
+      {id:201,type:'note',mi:'📋',name:'準備 JR PASS QR Code：掃 QR Code 進站，一大人帶一小孩'},
+      {id:202,type:'move',mt:'walk',name:'走路到 JR「天王寺駅」',fare:'',freq:'',dur:'',note:'',mapUrl:''},
+      {id:203,type:'move',mt:'jr',name:'天王寺駅 → 大阪駅（JR環狀線内回り・往西九條方向）',fare:'成人240¥・小孩120¥',freq:'約5分鐘一班',dur:'車程15-20分鐘',note:'刷JR PASS QR Code',mapUrl:D('天王寺駅','大阪駅')},
+      {id:204,type:'move',mt:'jr',name:'大阪駅 → 姬路駅（JR神戶線新快速・姬路行）',fare:'成人1,520¥・小孩760¥',freq:'約15分鐘一班',dur:'車程65分鐘',note:'刷JR PASS QR Code',mapUrl:D('大阪駅','姫路駅')},
+      {id:205,type:'move',mt:'bus',name:'姬路駅北口 → 大手門前（神姬巴士）',fare:'成人210¥・小孩110¥',freq:'約5分鐘一班',dur:'車程5分鐘',note:'刷ICOCA',mapUrl:D('姫路駅','大手門前')},
+      {id:206,type:'move',mt:'walk',name:'大手門前巴士站 → 姬路城（步行）',fare:'',freq:'',dur:'路程5分鐘',note:'也可從姬路駅北口直接步行（約20分鐘）',mapUrl:''},
+      {id:207,type:'spot',time:'上午',name:'姬路城 🏯',place:'兵庫県姫路市本町68番地',fee:'成人2,500¥・18歲以下免費',
+       notes:['出示關西地區週遊券，門票可能有折扣'],navUrl:N('姫路城')},
+      {id:208,type:'move',mt:'jr',name:'姬路駅 → 三之宮駅（JR神戶線新快速）',fare:'成人960¥・小孩480¥',freq:'約15分鐘一班',dur:'車程40分鐘',note:'刷JR PASS QR Code',mapUrl:D('姫路駅','三ノ宮駅')},
+      {id:209,type:'move',mt:'walk',name:'出站',fare:'',freq:'',dur:'',note:'',mapUrl:''},
+      {id:210,type:'meal',mi:'🍽',name:'午餐：JR 三之宮駅附近'},
+      {id:211,type:'note',mi:'🎫',name:'在綠色機台購買神戶動物王國交通套票：2大人+2小孩；另外1大+1小孩現場買身障票，刷ICOCA進站'},
+      {id:212,type:'move',mt:'walk',name:'走路到 JR「三之宮駅」',fare:'',freq:'',dur:'',note:'',mapUrl:''},
+      {id:213,type:'move',mt:'port',name:'三之宮駅 → 計算科學中心駅（Portliner・往神戶機場方向）',fare:'成人290¥・小孩150¥',freq:'約7分鐘一班',dur:'車程15分鐘',note:'刷ICOCA',mapUrl:D('三宮駅','神戸市立中央市民病院前駅')},
+      {id:214,type:'move',mt:'walk',name:'走路到神戶動物王國',fare:'',freq:'',dur:'',note:'',mapUrl:''},
+      {id:215,type:'spot',time:'下午',name:'神戶動物王國 🦁🦜',place:'神戸市中央区港島南町7-1-9',fee:'套票（已含交通套票）',notes:[],navUrl:N('神戸どうぶつ王国')},
+      {id:216,type:'move',mt:'walk',name:'走路到「計算科學中心駅」',fare:'',freq:'',dur:'',note:'',mapUrl:''},
+      {id:217,type:'move',mt:'port',name:'計算科學中心駅 → 三宮駅（Portliner）',fare:'成人290¥・小孩150¥',freq:'約7分鐘一班',dur:'車程15分鐘',note:'刷ICOCA',mapUrl:D('神戸市立中央市民病院前駅','三宮駅')},
+      {id:218,type:'move',mt:'walk',name:'出站',fare:'',freq:'',dur:'',note:'',mapUrl:''},
+      {id:219,type:'meal',mi:'🍽',name:'晚餐：神戶牛・南京町（18:00~19:00陸續關門，盡早用餐）'},
+      {id:220,type:'move',mt:'bus',name:'三宮駅前站牌(PL31) → 美利堅公園(PL35)（Port Loop 藍色接駁巴士）',fare:'成人260¥・小孩130¥',freq:'約20分鐘一班',dur:'車程10-15分鐘',note:'刷ICOCA',mapUrl:D('三宮駅','メリケンパーク 神戸')},
+      {id:221,type:'move',mt:'walk',name:'走路到美利堅公園・神戶塔・神戶臨海樂園',fare:'',freq:'',dur:'',note:'',mapUrl:''},
+      {id:222,type:'spot',time:'傍晚',name:'美利堅公園・神戶塔・神戶臨海樂園 🌊',place:'神戸市中央区波止場町2番地',fee:'',notes:[],navUrl:N('メリケンパーク 神戸')},
+      {id:223,type:'note',mi:'🕗',name:'【若早於 20:16】搭 Port Loop 回三宮'},
+      {id:224,type:'move',mt:'bus',name:'神戶臨海樂園(PL37) → 三宮駅前(PL31)（Port Loop 藍色接駁巴士）',fare:'成人260¥・小孩130¥',freq:'約20分鐘一班',dur:'車程10-15分鐘',note:'刷ICOCA',mapUrl:D('神戸メリケンパーク','三宮駅')},
+      {id:225,type:'move',mt:'jr',name:'三之宮駅 → 大阪駅（JR神戶線新快速）',fare:'成人420¥・小孩210¥',freq:'10-15分鐘一班',dur:'車程21分鐘',note:'刷JR PASS QR Code',mapUrl:D('三ノ宮駅','大阪駅')},
+      {id:226,type:'move',mt:'jr',name:'大阪駅 → 天王寺駅（JR環狀線内回り・往西九條方向）',fare:'成人240¥・小孩120¥',freq:'約5分鐘一班',dur:'車程15-20分鐘',note:'刷JR PASS QR Code　應該在第一月台',mapUrl:D('大阪駅','天王寺駅')},
+      {id:227,type:'move',mt:'walk',name:'走路到飯店 Ocean Tsutenkaku',fare:'',freq:'',dur:'',note:'',mapUrl:''},
+      {id:228,type:'note',mi:'🕗',name:'【若晚於 20:16】改從神戶駅出發'},
+      {id:229,type:'move',mt:'jr',name:'神戶駅 → 大阪駅（JR神戶線新快速）',fare:'成人420¥・小孩210¥',freq:'10-15分鐘一班',dur:'車程30-35分鐘',note:'刷JR PASS',mapUrl:D('神戸駅','大阪駅')},
+      {id:230,type:'move',mt:'jr',name:'大阪駅 → 天王寺駅（JR環狀線内回り・往西九條方向）',fare:'成人240¥・小孩120¥',freq:'約5分鐘一班',dur:'車程15-20分鐘',note:'刷JR PASS QR Code',mapUrl:D('大阪駅','天王寺駅')},
+      {id:231,type:'move',mt:'walk',name:'走路到飯店 Ocean Tsutenkaku',fare:'',freq:'',dur:'',note:'',mapUrl:''},
+    ]},
+
+    /* ─── Day 3 · 5/10 · 京都 ─── */
+    {id:2,label:'Day 3',cs:'京都',city:'京都 Kyoto',date:'5/10 一',flight:'',
+     weather:{icon:'🌸',temp:20,feel:18,min:14,max:23,desc:'晴朗舒適',humidity:55,wind:2.8},
+     routeUrl:D('Ocean Hotel Tsutenkaku 大阪','伏見稲荷大社','清水寺','あべのハルカス 大阪','通天閣 大阪'),
+     items:[
+      {id:300,type:'note',mi:'🏨',name:'出發前 → 飯店 Ocean Tsutenkaku'},
+      {id:301,type:'note',mi:'📋',name:'記得預約 Haruka 指定席！JR-WEST：https://www.zowoyoo.com/api/codetemp/jpjwqshtml.jsp?signParem=gAAqKgU1k4cDkv4dL15OcLKRXYCtkHlbU1JzBmamwQCQc70G7_ydA67bf-x-_1NtuAQlrqQqWPeQmE8joBOwy0PCdLZYZa7XhpUgskOG4Y5M9kmZbsY0jg**&sign=d11f03a62306bc4ccfa48b352b1a8a6e'},
+      {id:302,type:'move',mt:'walk',name:'走路到 JR「天王寺駅」',fare:'',freq:'',dur:'',note:'',mapUrl:''},
+      {id:303,type:'move',mt:'jr',name:'天王寺駅 → 京都駅（Haruka 指定席）',fare:'成人2,690¥・小孩1,340¥',freq:'35分鐘一班',dur:'車程42-50分鐘',note:'刷JR PASS QR Code',mapUrl:D('天王寺駅','京都駅')},
+      {id:304,type:'move',mt:'jr',name:'京都駅 → 稻荷駅（JR奈良線・往奈良/城陽方向）',fare:'成人960¥・小孩480¥',freq:'約12分鐘一班',dur:'車程5分鐘',note:'刷ICOCA',mapUrl:D('京都駅','稲荷駅')},
+      {id:305,type:'move',mt:'walk',name:'JR 稻荷駅 → 伏見稻荷大社（步行）',fare:'',freq:'',dur:'路程1分鐘',note:'',mapUrl:''},
+      {id:306,type:'spot',time:'上午',name:'伏見稻荷大社 ⛩',place:'京都市伏見区深草薮之内町68番地',fee:'免費',
+       notes:['建議早上前往，人潮較少'],navUrl:N('伏見稲荷大社')},
+      {id:307,type:'meal',mi:'🍽',name:'午餐：伏見稻荷附近解決'},
+      {id:308,type:'move',mt:'walk',name:'步行到京阪電車「伏見稻荷駅」',fare:'',freq:'',dur:'路程6分鐘',note:'',mapUrl:''},
+      {id:309,type:'move',mt:'jr',name:'伏見稻荷駅 → 清水五条駅（京阪電車準急或普通）',fare:'成人240¥・小孩120¥',freq:'約10分鐘一班',dur:'車程5-10分鐘',note:'刷ICOCA',mapUrl:D('伏見稲荷駅','清水五条駅')},
+      {id:310,type:'move',mt:'walk',name:'清水五条駅 4號出口 → 清水寺（步行）',fare:'',freq:'',dur:'路程20分鐘',note:'',mapUrl:''},
+      {id:311,type:'spot',time:'下午',name:'清水寺 🛕',place:'京都市東山区清水1-294',fee:'成人400¥・小孩200¥',
+       notes:['清水舞台眺望京都市景'],navUrl:N('清水寺 京都')},
+      {id:312,type:'note',mi:'🚌',name:'【回京都駅・路線①】步行10分鐘到「五条坂巴士站」→ 搭206/106/86巴士到「京都駅前」'},
+      {id:313,type:'move',mt:'walk',name:'步行到「五条坂巴士站」',fare:'',freq:'',dur:'路程10分鐘',note:'',mapUrl:''},
+      {id:314,type:'move',mt:'bus',name:'五条坂巴士站 → 京都駅前（206/106/86巴士）',fare:'刷ICOCA',freq:'',dur:'',note:'',mapUrl:D('五条坂バス停','京都駅')},
+      {id:315,type:'note',mi:'🚃',name:'【回京都駅・路線②】步行到「祇園四条駅」→ 京阪本線往「淀屋橋・樟葉方向」→ 東福寺駅 ⚠️ 要走乘換口換JR站！→ JR奈良線到「京都駅」'},
+      {id:316,type:'move',mt:'walk',name:'步行到「祇園四条駅」',fare:'',freq:'',dur:'',note:'',mapUrl:''},
+      {id:317,type:'move',mt:'jr',name:'祇園四条駅 → 東福寺駅（京阪本線・往淀屋橋/樟葉方向）',fare:'成人180¥・小孩90¥',freq:'約12分鐘一班',dur:'車程5-10分鐘',note:'刷ICOCA',mapUrl:D('祇園四条駅','東福寺駅')},
+      {id:318,type:'note',mi:'⚠️',name:'東福寺駅 → JR 東福寺駅：要走乘換口換車站！！！！'},
+      {id:319,type:'move',mt:'jr',name:'JR 東福寺駅 → 京都駅（JR奈良線・往奈良方面）',fare:'刷JR PASS QR Code',freq:'約7分鐘一班',dur:'車程2分鐘',note:'',mapUrl:D('東福寺駅','京都駅')},
+      {id:320,type:'note',mi:'📋',name:'記得預約 Haruka 指定席！'},
+      {id:321,type:'move',mt:'jr',name:'京都駅 → 天王寺駅（Haruka）',fare:'成人2,690¥・小孩1,340¥',freq:'35分鐘一班',dur:'車程42-50分鐘（約53分鐘）',note:'刷JR PASS QR Code',mapUrl:D('京都駅','天王寺駅')},
+      {id:322,type:'move',mt:'walk',name:'天王寺駅 → 阿倍野 HARUKAS 300 展望台（步行）',fare:'',freq:'',dur:'',note:'',mapUrl:''},
+      {id:323,type:'spot',time:'傍晚',name:'阿倍野 HARUKAS 300 展望台 🏙',place:'大阪市阿倍野区阿倍野筋1-1-43',fee:'成人2,000¥・小孩700¥（2位小孩現場買）',notes:[],navUrl:N('あべのハルカス 大阪')},
+      {id:324,type:'move',mt:'walk',name:'走路到新世界本通商店街',fare:'',freq:'',dur:'',note:'',mapUrl:''},
+      {id:325,type:'meal',mi:'🍽',name:'晚餐：新世界本通商店街'},
+      {id:326,type:'move',mt:'walk',name:'走路到通天閣',fare:'',freq:'',dur:'',note:'',mapUrl:''},
+      {id:327,type:'spot',time:'晚上',name:'通天閣 🗼',place:'大阪市浪速区恵美須東1-18-6',
+       fee:'展望台成人1,200¥/小孩600¥（周遊卡免費）・溜滑梯成人1,000¥/小孩500¥・天望樂園成人300¥/小孩200¥（周遊卡折100¥）',
+       notes:['最後入場時間 19:30'],navUrl:N('通天閣 大阪')},
+      {id:328,type:'note',mi:'⚠️',name:'睡前記得：預約隔日（5/11）環球影城爆米花桶！'},
+      {id:329,type:'move',mt:'walk',name:'走路到飯店 Ocean Tsutenkaku',fare:'',freq:'',dur:'',note:'',mapUrl:''},
+      {id:330,type:'note',mi:'🛍',name:'【若想逛難波】走路到地鐵「大國町駅」→ 御堂筋線→「難波駅」逛街 → 難波駅 → 御堂筋線→「大國町駅」→ 走路回飯店'},
+    ]},
+
+    /* ─── Day 4 · 5/11 · 環球影城 ─── */
+    {id:3,label:'Day 4',cs:'USJ',city:'環球影城 USJ',date:'5/11 二',flight:'',
+     weather:{icon:'☀️',temp:24,feel:23,min:19,max:28,desc:'大晴天 出遊好日',humidity:50,wind:2.0},
+     routeUrl:D('Ocean Hotel Tsutenkaku 大阪','ユニバーサル・スタジオ・ジャパン'),
+     items:[
+      {id:400,type:'note',mi:'🏨',name:'出發前 → 飯店 Ocean Tsutenkaku'},
+      {id:401,type:'move',mt:'walk',name:'走路到 JR「天王寺駅」',fare:'',freq:'',dur:'',note:'',mapUrl:''},
+      {id:402,type:'move',mt:'jr',name:'天王寺駅 → 西九條駅（JR環狀線内回り・往西九條方向）',fare:'成人210¥・小孩100¥',freq:'5-10分鐘一班',dur:'車程13-15分鐘',note:'刷JR PASS QR Code',mapUrl:D('天王寺駅','西九条駅')},
+      {id:403,type:'move',mt:'jr',name:'西九條駅 → 環球城駅（JR夢咲線・下車後轉乘對面月台・往櫻島方向）',fare:'刷JR PASS QR Code',freq:'5-10分鐘一班',dur:'車程5分鐘',note:'',mapUrl:D('西九条駅','ユニバーサルシティ駅')},
+      {id:404,type:'move',mt:'walk',name:'走路到環球影城入口',fare:'',freq:'',dur:'',note:'',mapUrl:''},
+      {id:405,type:'spot',time:'09:00',name:'環球影城 USJ 🎠🎡',place:'大阪市此花区桜島2-1-33',fee:'門票另購（建議加快速通關）',
+       notes:['09:00～20:00 開園','記得領取預約的爆米花桶'],navUrl:N('ユニバーサル・スタジオ・ジャパン')},
+
+      {id:409,type:'move',mt:'walk',name:'走路到 JR「環球城駅」',fare:'',freq:'',dur:'',note:'',mapUrl:''},
+      {id:410,type:'move',mt:'jr',name:'環球城駅 → 天王寺駅（JR直達・找列車終點顯示「天王寺」或「環狀線直通」）',fare:'成人210¥・小孩100¥',freq:'約15分鐘一班',dur:'車程25-30分鐘',note:'刷JR PASS QR Code',mapUrl:D('ユニバーサルシティ駅','天王寺駅')},
+      {id:411,type:'move',mt:'walk',name:'走路到飯店 Ocean Tsutenkaku',fare:'',freq:'',dur:'',note:'',mapUrl:''},
+    ]},
+
+    /* ─── Day 5 · 5/12 · 回程 ─── */
+    {id:4,label:'Day 5',cs:'返台',city:'回台灣 ✈️',date:'5/12 三',
+     flight:'CI173 關西機場 19:05 → 桃園T2 21:10',
+     weather:{icon:'🌤',temp:23,feel:21,min:18,max:26,desc:'晴時多雲',humidity:60,wind:3.0},
+     routeUrl:D('Ocean Hotel Tsutenkaku 大阪','りんくうプレミアム・アウトレット','関西国際空港'),
+     items:[
+      {id:500,type:'note',mi:'⚠️',name:'今日注意：10點前退房！確認是否有需要再買的東西'},
+      {id:501,type:'note',mi:'📋',name:'預定 Haruka 指定席（JR-WEST）：https://www.zowoyoo.com/api/codetemp/jpjwqshtml.jsp?signParem=gAAqKgU1k4cDkv4dL15OcLKRXYCtkHlbU1JzBmamwQCQc70G7_ydA67bf-x-_1NtuAQlrqQqWPeQmE8joBOwy0PCdLZYZa7XhpUgskOG4Y5M9kmZbsY0jg**&sign=d11f03a62306bc4ccfa48b352b1a8a6e'},
+      {id:502,type:'spot',time:'10:00',name:'飯店 Ocean Tsutenkaku 退房 🧳',place:'大阪市浪速区恵美須東2-3-8',fee:'',
+       notes:[],navUrl:''},
+      {id:503,type:'move',mt:'walk',name:'走路到 JR「天王寺駅」',fare:'',freq:'',dur:'',note:'',mapUrl:''},
+      {id:504,type:'move',mt:'jr',name:'天王寺駅 → 關西空港駅（Haruka 指定席）',fare:'刷豪華關西 PASS，另購2張小孩票',freq:'',dur:'',
+       note:'⚠️ 要搭前四節車廂！⚠️ 要先出站再進站！！',mapUrl:D('天王寺駅','関西空港駅')},
+      {id:505,type:'move',mt:'walk',name:'搭乘手扶梯到二樓，走過空橋到「關西空港駅」',fare:'',freq:'',dur:'',note:'🔴 紅=南海電鐵　🔵 藍=JR西日本',mapUrl:''},
+      {id:506,type:'note',mi:'🛍',name:'【可選】前往臨空城 Outlet 逛街'},
+      {id:507,type:'move',mt:'jr',name:'關西空港駅 → 臨空城駅（JR環狀線）',fare:'成人370¥・小孩185¥',freq:'15-30分鐘一班',dur:'車程5分鐘',note:'刷ICOCA',mapUrl:D('関西空港駅','りんくうタウン駅')},
+      {id:508,type:'move',mt:'walk',name:'走2號出口 → 臨空城 Outlet（步行）',fare:'',freq:'',dur:'路程5分鐘',note:'',mapUrl:''},
+      {id:509,type:'spot',time:'',name:'臨空城 Outlet 🛍',place:'大阪府泉佐野市りんくう往来北3',fee:'',
+       notes:[],navUrl:N('りんくうプレミアム・アウトレット')},
+      {id:510,type:'meal',mi:'🍽',name:'午餐：臨空城 Outlet'},
+      {id:511,type:'move',mt:'walk',name:'走路到 JR「臨空城駅」',fare:'',freq:'',dur:'路程5分鐘',note:'',mapUrl:''},
+      {id:512,type:'move',mt:'jr',name:'臨空城駅 → 關西空港駅（JR環狀線）',fare:'成人370¥・小孩185¥',freq:'15-30分鐘一班',dur:'車程5分鐘',note:'刷ICOCA',mapUrl:D('りんくうタウン駅','関西空港駅')},
+      {id:513,type:'spot',time:'16:00',name:'關西機場 T1 辦理登機 ✈️',place:'大阪府泉佐野市関西空港1番地',fee:'',
+       notes:['起飛前3小時到機場預辦登機','B1也有伴手禮可補購'],navUrl:N('関西国際空港 第1ターミナル')},
+      {id:514,type:'note',mi:'✈️',name:'CI173 中華航空 · 關西機場 19:05 → 桃園T2 21:10'},
+    ]},
+  ]);
+
+  const ad=ref(0),at=ref('schedule'),mm=ref(false),geo=ref('點擊按鈕取得目前位置');
+  const cd=computed(()=>days.value[ad.value]);
+
+  // 地圖
+  const coords=[[34.6937,135.5023],[34.6901,135.1956],[35.0116,135.7681],[34.6654,135.4323],[34.4348,135.2440]];
+  const muUrl=computed(()=>{const[la,lo]=coords[ad.value];return`https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d25000!2d${lo}!3d${la}!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0!2s!5e0!3m2!1szh-TW!2stw!4v1`;});
+  const fuUrl=computed(()=>{const[la,lo]=coords[ad.value];return`https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d18000!2d${lo}!3d${la}!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0!2s!5e0!3m2!1szh-TW!2stw!4v2`;});
+  const gml=computed(()=>{const s=cd.value.items.filter(i=>i.type==='spot');return s.length?`https://www.google.com/maps/search/${encodeURIComponent(s[0].place+' '+s[0].name)}`:'https://maps.google.com';});
+  const enc=s=>encodeURIComponent(s);
+  const gG=()=>{geo.value='定位中…';navigator.geolocation?.getCurrentPosition(p=>{geo.value=`${p.coords.latitude.toFixed(5)}, ${p.coords.longitude.toFixed(5)}`;},()=>{geo.value='無法取得，請確認定位權限';});};
+
+  // 景點 CRUD
+  const sM=reactive({show:false,ed:false,ei:-1});
+  const sF=reactive({time:'',name:'',place:'',fee:'',noteRaw:''});
+  const oaS=()=>{sM.ed=false;sM.ei=-1;Object.assign(sF,{time:'',name:'',place:'',fee:'',noteRaw:''});sM.show=true;};
+  const eI=ii=>{const it=cd.value.items[ii];sM.ed=true;sM.ei=ii;Object.assign(sF,{...it,noteRaw:(it.notes||[]).join('\n')});sM.show=true;};
+  const svS=()=>{
+    if(!sF.name)return;
+    const notes=sF.noteRaw.split('\n').map(s=>s.trim()).filter(Boolean);
+    const it={id:Date.now(),type:'spot',time:sF.time,name:sF.name,place:sF.place,fee:sF.fee,notes,navUrl:'',mapUrl:''};
+    if(sM.ed)cd.value.items[sM.ei]=it;else cd.value.items.push(it);
+    sM.show=false;
+  };
+  const dI=ii=>cd.value.items.splice(ii,1);
+
+  // 備用景點
+  const bks=ref([
+
+    {id:2,name:'梅田藍天大廈',place:'大阪市北区大淀中1-1-88',di:0,dl:'Day1 大阪',icon:'🌆',note:'空中庭園360度夜景絕美'},
+    {id:3,name:'海遊館',place:'大阪市港区海岸通1-1-10',di:0,dl:'Day1 大阪',icon:'🐋',note:'全球最大水族館之一，鯨鯊主水槽超壯觀'},
+    {id:4,name:'南京町（神戶中華街）',place:'神戸市中央区栄町通1-3-18',di:1,dl:'Day2 神戶',icon:'🥟',note:'神戶牛肉包！18~19點陸續關門要早去'},
+  ]);
+  const bkM=ref(false);
+  const bF=reactive({name:'',place:'',di:0,icon:'🏯',note:''});
+  const svB=()=>{if(!bF.name)return;bks.value.push({id:Date.now(),name:bF.name,place:bF.place,di:bF.di,dl:days.value[bF.di].label+' '+days.value[bF.di].cs,icon:bF.icon,note:bF.note});bkM.value=false;};
+  const m2s=sp=>{days.value[sp.di].items.push({id:Date.now(),type:'spot',time:'',name:sp.name,place:sp.place,fee:'',notes:[sp.note].filter(Boolean),navUrl:'',mapUrl:''});ad.value=sp.di;at.value='schedule';};
+
+  const tabs=[{id:'schedule',icon:'📅',label:'行程'},{id:'backup',icon:'⭐',label:'備用'},{id:'map',icon:'🗺',label:'地圖'}];
+
+  return{days,ad,at,cd,mm,geo,gG,muUrl,fuUrl,gml,enc,linkify,mvClass,mvIcon,mvColor,sM,sF,oaS,eI,svS,dI,bks,bkM,bF,svB,m2s,tabs};
+}}).mount('#app');
+</script>
+</body>
+</html>
